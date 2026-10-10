@@ -49,6 +49,14 @@ class ImportConfig:
     openai_api_key: str = field(
         default_factory=lambda: os.getenv("OPENAI_API_KEY", "")
     )
+
+    # ==================== MinerU 在线 API 配置 ====================
+    mineru_api_token: str = field(
+        default_factory=lambda: os.getenv("MINERU_API_TOKEN", "")
+    )
+    mineru_api_base: str = field(
+        default_factory=lambda: os.getenv("MINERU_API_BASE", "https://mineru.net")
+    )
     vl_model: str = field(
         default_factory=lambda: os.getenv("VL_MODEL", "")
     )

@@ -119,6 +119,8 @@ def run_import_graph(import_file_path: str, file_dir: str) -> dict:
     :return: 最终状态字典
     """
     state = {
+        "is_pdf_read_enabled": True,
+        "is_md_read_enabled": False,
         "import_file_path": import_file_path,
         "file_dir": file_dir
     }
@@ -144,8 +146,8 @@ def run_import_graph(import_file_path: str, file_dir: str) -> dict:
 if __name__ == "__main__":
     setup_logging()
 
-    import_file_path = r"D:\workspace\python\PythonProject\shopkeeper_brain\knowledge\processor\import_process\temp_dir\万用表RS-12的使用.pdf"
-    file_dir = r"D:\workspace\python\PythonProject\shopkeeper_brain\knowledge\processor\import_process\temp_dir"
+    import_file_path = r"E:\zw\project\file\doc\万用表RS-12的使用.pdf"
+    file_dir = r"E:\zw\project\file\temp_dir"
 
     final_state = run_import_graph(import_file_path, file_dir)
     print(json.dumps(final_state, indent=4, ensure_ascii=False))

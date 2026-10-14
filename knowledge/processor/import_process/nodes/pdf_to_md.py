@@ -18,9 +18,11 @@ PDF转Markdown节点：调用 MinerU 在线 API 完成转换
 - 如不慎泄露，到 https://mineru.net/apiManage/token 撤销
 """
 import os
+import re
 import time
 import zipfile
-from typing import Optional
+from pathlib import Path
+from typing import Dict, Optional
 
 import requests
 
@@ -104,9 +106,16 @@ class PdfToMdNode(BaseNode):
             "enable_formula": True,
             "enable_table": True,
             "language": "ch",
-            "is_ocr": False,
             "model_version": "vlm",  # 在线默认 vlm，质量最好
-            "files": [{"name": file_name, "data_id": file_name}],
+            "files": [
+                {
+                    "name": file_name,
+                    # data_id 仅允许 字母/数字/_/-/. ，中文文件名需净化
+                    "data_id": self._safe_data_id(file_name),
+                    # is_ocr 属 file 级参数（文档：files[].is_ocr），非顶层
+                    "is_ocr": False,
+                }
+            ],
         }
         data = self._post(url, headers, payload)
         if data.get("code") != 0:
@@ -121,11 +130,19 @@ class PdfToMdNode(BaseNode):
     # ------------------------------------------------------------------
     def _put_file(self, file_url: str, file_path: str) -> None:
         """PUT 上传到 MinerU 返回的临时 URL（24h 有效）"""
+        file_size = os.path.getsize(file_path)
         with open(file_path, "rb") as f:
             # 注意：MinerU 要求 PUT 时**不要**带 Content-Type
             resp = requests.put(
                 file_url, data=f, timeout=HTTP_TIMEOUT_SECONDS * 2
             )
+        # 调试用：打印上传状态码 + ETag + 返回内容
+        body = resp.text[:500] if resp.text else "<empty>"
+        self.log_step(
+            "MinerU HTTP PUT",
+            f"status={resp.status_code} size={file_size}B "
+            f"etag={resp.headers.get('ETag', 'N/A')} body={body}",
+        )
         resp.raise_for_status()
         self.log_step("上传PDF", f"{os.path.basename(file_path)} ok")
 
@@ -222,12 +239,18 @@ class PdfToMdNode(BaseNode):
                 return value.strip()
         return ""
 
+    @staticmethod
+    def _safe_data_id(file_name: str) -> str:
+        """data_id 仅允许 字母/数字/_/-/.（文档要求），中文等非法字符替换为 _"""
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", file_name)
+        return safe[:128] or "file"
+
     # ------------------------------------------------------------------
     # 4) 下载并解压 ZIP
     # ------------------------------------------------------------------
     def _download_and_extract(self, zip_url: str, extract_dir: str,
                               file_title: str) -> Optional[str]:
-        """下载 ZIP 包并解压，定位 full.md 路径返回"""
+        """下载 ZIP 包并解压，按原文件名重命名内部文件，定位 md 路径返回"""
         os.makedirs(extract_dir, exist_ok=True)
         zip_path = os.path.join(extract_dir, f"{file_title}.zip")
 
@@ -246,11 +269,77 @@ class PdfToMdNode(BaseNode):
         os.remove(zip_path)  # 节省空间
         self.log_step("解压", extract_dir)
 
-        # 定位 full.md：通常在 ZIP 根目录，但保险起见递归找
-        for root, _, files in os.walk(extract_dir):
-            if "full.md" in files:
-                return os.path.join(root, "full.md")
-        return None
+        # 按原文件名重命名 MinerU 输出，并同步更新 md 里的图片引用
+        md_path = self._rename_extracted_files(extract_dir, file_title)
+        return md_path
+
+    def _rename_extracted_files(self, extract_dir: str,
+                                file_title: str) -> Optional[str]:
+        """把 MinerU 生成的 UUID/默认文件名统一改为 {file_title}_* 形式。"""
+        base_dir = Path(extract_dir)
+        if not base_dir.exists():
+            return None
+
+        title = file_title.strip() or "document"
+
+        # 1) 重命名 images/ 下的图片，并记录 old_name -> new_name
+        images_dir = base_dir / "images"
+        img_rename_map: Dict[str, str] = {}
+        if images_dir.exists() and images_dir.is_dir():
+            img_files = sorted(p for p in images_dir.iterdir() if p.is_file())
+            for idx, old_path in enumerate(img_files, start=1):
+                new_name = f"{title}_img_{idx:03d}{old_path.suffix.lower()}"
+                new_path = old_path.with_name(new_name)
+                old_path.rename(new_path)
+                img_rename_map[old_path.name] = new_name
+
+        # 2) 替换 md 文件里的图片引用
+        md_path: Optional[Path] = None
+        for md_file in base_dir.iterdir():
+            if md_file.is_file() and md_file.suffix.lower() == ".md":
+                content = md_file.read_text(encoding="utf-8")
+                for old_name, new_name in img_rename_map.items():
+                    content = content.replace(
+                        f"images/{old_name}", f"images/{new_name}"
+                    )
+                md_file.write_text(content, encoding="utf-8")
+                if md_file.name == "full.md":
+                    md_path = md_file
+
+        # 3) 重命名顶层文件
+        for p in list(base_dir.iterdir()):
+            if not p.is_file():
+                continue
+            old_name = p.name
+
+            if old_name == "full.md":
+                new_name = f"{title}.md"
+            elif old_name == "full_new.md":
+                new_name = f"{title}_new.md"
+            elif old_name == "layout.json":
+                new_name = f"{title}_layout.json"
+            else:
+                # 去掉 36 位 UUID 前缀（含下划线）
+                rest = re.sub(
+                    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+                    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_",
+                    "",
+                    old_name,
+                )
+                # 去掉可能的 full_ 前缀
+                if rest.startswith("full_"):
+                    rest = rest[5:]
+                if rest:
+                    new_name = f"{title}_{rest}"
+                else:
+                    new_name = f"{title}_{old_name}"
+
+            new_path = p.with_name(new_name)
+            p.rename(new_path)
+            if old_name == "full.md":
+                md_path = new_path
+
+        return str(md_path) if md_path else None
 
     # ------------------------------------------------------------------
     # HTTP 封装
@@ -263,6 +352,7 @@ class PdfToMdNode(BaseNode):
             raise PdfConversionError(
                 f"请求 MinerU 失败: {e}", node_name=self.name, cause=e,
             )
+        self._log_http("POST", url, payload, resp)
         return self._parse_response(resp)
 
     def _get(self, url: str, headers: dict) -> dict:
@@ -273,7 +363,20 @@ class PdfToMdNode(BaseNode):
             raise PdfConversionError(
                 f"请求 MinerU 失败: {e}", node_name=self.name, cause=e,
             )
+        self._log_http("GET", url, None, resp)
         return self._parse_response(resp)
+
+    def _log_http(self, method: str, url: str, payload, resp) -> None:
+        """调试用：打印每次 MinerU 接口调用的状态码与原始返回内容"""
+        body = resp.text[:2000] if resp.text else "<empty>"
+        req = ""
+        if payload is not None:
+            import json as _json
+            req = f" payload={_json.dumps(payload, ensure_ascii=False)[:500]}"
+        self.log_step(
+            f"MinerU HTTP {method}",
+            f"status={resp.status_code} url={url}{req} body={body}",
+        )
 
     @staticmethod
     def _parse_response(resp: requests.Response) -> dict:

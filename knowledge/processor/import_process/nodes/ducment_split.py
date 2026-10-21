@@ -58,7 +58,7 @@ class DocumentSplitNode(BaseNode):
         #5.日志统计
         self._log_summary(md_content, chunks, max_content_length)
         #6.备份切片（可选，为了自己测试）
-        self._backup_chunks(state, chunks)
+        # self._backup_chunks(state, chunks)
 
         #7. 返回状态
         state["chunks"] = chunks
@@ -231,11 +231,13 @@ class DocumentSplitNode(BaseNode):
         sub_section = []
         for index, text in enumerate(texts):
             sub_section.append({
-                "title": title + "-" + f"{index + 1}",
+                # 这里不拼序号：最终编号由 merge_short_section 的重编号循环统一拼接，
+                # 否则会出现 "-1- 1" 这种双重编号
+                "title": title,
                 "body": text,
                 "file_title": file_title,
                 "parent_title": parent_title,
-                "part": f"{index + 1}"  # 标记序号
+                "part": index + 1  # 标记序号（int，最终以重编号结果为准）
             })
 
         return sub_section

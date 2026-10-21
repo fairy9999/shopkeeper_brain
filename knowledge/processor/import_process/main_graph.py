@@ -146,7 +146,8 @@ def run_import_graph(import_file_path: str, file_dir: str) -> dict:
 if __name__ == "__main__":
     setup_logging()
 
-    import_file_path = r"E:\zw\project\file\doc\万用表RS-12的使用.pdf"
+    # import_file_path = r"E:\zw\project\file\doc\万用表RS-12的使用.pdf"
+    import_file_path = r"E:\zw\project\file\doc\H3C LA2608室内无线网关 用户手册-6W100-整本手册.pdf"
     file_dir = r"E:\zw\project\file\temp_dir"
 
     final_state = run_import_graph(import_file_path, file_dir)

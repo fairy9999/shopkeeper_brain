@@ -175,6 +175,8 @@ if __name__ == "__main__":
     answer_1 = result_1.get("answer", "")
     print(f"  答案: {answer_1[:200]}..." if len(answer_1) > 200 else f"  答案: {answer_1}")
 
+    query_app.get_graph().print_ascii()
+
 """
     invoke vs stream 的区别：
 

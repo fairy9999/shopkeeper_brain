@@ -74,7 +74,7 @@ class QueryConfig:
         default_factory=lambda: os.getenv("OPENAI_API_KEY", "")
     )
     default_model: str = field(
-        default_factory=lambda: os.getenv("MODEL", "")
+        default_factory=lambda: os.getenv("LLM_DEFAULT_MODEL", "")
     )
     item_model: str = field(
         default_factory=lambda: os.getenv("ITEM_MODEL", "")

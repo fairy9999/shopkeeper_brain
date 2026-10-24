@@ -147,7 +147,7 @@ if __name__ == "__main__":
     setup_logging()
 
     # import_file_path = r"E:\zw\project\file\doc\万用表RS-12的使用.pdf"
-    import_file_path = r"E:\zw\project\file\doc\H3C LA2608室内无线网关 用户手册-6W100-整本手册.pdf"
+    import_file_path = r"E:\zw\project\file\doc\hak180使用说明书.pdf"
     file_dir = r"E:\zw\project\file\temp_dir"
 
     final_state = run_import_graph(import_file_path, file_dir)

@@ -98,6 +98,9 @@ class QueryConfig:
     mcp_dashscope_base_url: str = field(
         default_factory=lambda: os.getenv("MCP_DASHSCOPE_BASE_URL", "")
     )
+    mcp_dashscope_api_key: str = field(
+        default_factory=lambda: os.getenv("DASHSCOPE_API_KEY", "")
+    )
 
 
     @classmethod

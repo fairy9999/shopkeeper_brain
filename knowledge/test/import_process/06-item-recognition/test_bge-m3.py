@@ -2,7 +2,7 @@ from pymilvus.model.hybrid import BGEM3EmbeddingFunction
 
 # 1. 加载模型
 bge_m3 = BGEM3EmbeddingFunction(
-    # model_name="BAAI/bge-m3",
+    # model_name="BAAI/bge-m3", #在线模型
     # device="cuda:0",
     # use_fp16=True,
     model_name=r"E:\zw\ai_models\modelscope_cache\models\BAAI\bge-m3",

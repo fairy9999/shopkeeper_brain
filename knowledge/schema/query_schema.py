@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -23,3 +23,17 @@ class StreamSubmitResponse(BaseModel):
     message: str
     session_id: str
     task_id: str
+
+class HistoryItem(BaseModel):
+    id: str = Field("", alias="_id")
+    session_id: str = ""
+    role: str = ""
+    text: str = ""
+    rewritten_query: str = ""
+    item_names: List[str] = Field(default_factory=list)
+    ts: Optional[float] = None
+
+
+class HistoryResponse(BaseModel):
+    session_id: str
+    items: List[HistoryItem]

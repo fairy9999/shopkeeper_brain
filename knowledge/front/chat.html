@@ -639,11 +639,11 @@
             progressEl.removeAttribute('open');
         }
         bubble.textContent = '';
+        if(progressEl) bubble.appendChild(progressEl); // 进度块放错误信息上方
         const errEl = document.createElement('div');
         errEl.className = 'answer';
         errEl.textContent = `抱歉，本次处理失败：\n${err}`;
         bubble.appendChild(errEl);
-        if(progressEl) bubble.appendChild(progressEl);
         return;
       }
 
@@ -655,9 +655,9 @@
       bubble.textContent = '';
       const answerEl = document.createElement('div');
       answerEl.className = 'answer';
+      if(progressEl) bubble.appendChild(progressEl); // 进度块放答案上方
       bubble.appendChild(answerEl);
       renderAnswerWithImages(answerEl, answer || '', imageUrls || []);
-      if(progressEl) bubble.appendChild(progressEl);
     }
 
     async function loadHistory(){
@@ -759,7 +759,13 @@
         if(!answerEl){
           answerEl = document.createElement('div');
           answerEl.className = 'answer';
-          bubble.insertBefore(answerEl, bubble.firstChild);
+          // 插入到进度块之后，保证"阶段进度"始终在答案上方
+          const progressEl = bubble.querySelector('details.progress');
+          if(progressEl){
+            progressEl.after(answerEl);
+          }else{
+            bubble.appendChild(answerEl);
+          }
         }
 
         const es = new EventSource(`${API_BASE}/stream/${task_id}`);
@@ -826,6 +832,11 @@
             const d = JSON.parse(e.data || '{}');
             // 优先使用 final 包里的完整 answer，否则回退到流式拼接的文本
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
+            // 兜底：确保进度块位于答案上方
+            const progressEl = botMsgEl.querySelector('details.progress');
+            if(progressEl && progressEl.nextElementSibling !== answerEl){
+              answerEl.before(progressEl);
+            }
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
           }catch(_){}
           es.close();

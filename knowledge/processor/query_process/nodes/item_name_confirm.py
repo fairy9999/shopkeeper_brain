@@ -298,14 +298,6 @@ class ItemNameConfirmNode(BaseNode):
         if confirmed:
             for msg in history_messages:
                 msg["item_names"] = confirmed
-            # ids_to_update = [
-            #     str(msg["_id"]) for msg in history_messages if not msg.get("item_names")
-            # ]
-            # if ids_to_update:
-            #     try:
-            #         update_message_item_names(ids_to_update, confirmed)
-            #     except Exception as e:
-            #         self.logger.warning(f"回填历史 item_names 失败: {e}")
             # 将历史对话写入 state，供下游使用
             state["history"] = history_messages
 
